@@ -8,6 +8,7 @@ import {
   Truck,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -31,7 +32,14 @@ const mainNav = [
 
 export function AppSidebar() {
   const { state } = useSidebar();
+  const navigate  = useNavigate();
   const collapsed = state === "collapsed";
+
+  const handleSignOut = () => {
+    localStorage.removeItem("cf_token");
+    localStorage.removeItem("cf_user");
+    navigate("/login", { replace: true });
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -71,14 +79,13 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
-              <NavLink
-                to="/login"
-                className="flex items-center gap-3 px-4 py-2.5 rounded-md text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-                activeClassName=""
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-3 px-4 py-2.5 rounded-md text-red-400 hover:bg-red-500/10 hover:text-red-400 transition-colors w-full"
               >
                 <LogOut className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>Sign Out</span>}
-              </NavLink>
+              </button>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
