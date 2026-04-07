@@ -8,6 +8,7 @@ import Dashboard  from "@/pages/Dashboard";
 import Profile    from "@/pages/Profile";
 import Login      from "@/pages/Login";
 import NotFound   from "@/pages/NotFound";
+import AIChatBot  from "@/components/AIChatBot";
 
 // Retailer pages
 import RetailerOrders    from "@/pages/retailer/RetailerOrders";
@@ -49,7 +50,12 @@ function GuestGuard({ children }: { children: React.ReactNode }) {
 }
 
 function Protected({ children }: { children: React.ReactNode }) {
-  return <AuthGuard><AppLayout>{children}</AppLayout></AuthGuard>;
+  return (
+    <AuthGuard>
+      <AppLayout>{children}</AppLayout>
+      <AIChatBot />
+    </AuthGuard>
+  );
 }
 
 const App = () => (
