@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0284c7;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="url(#grad)"/>
+  
+  <!-- Supply chain boxes -->
+  <rect x="15" y="35" width="18" height="18" fill="white" rx="2"/>
+  <rect x="41" y="35" width="18" height="18" fill="white" rx="2"/>
+  <rect x="67" y="35" width="18" height="18" fill="white" rx="2"/>
+  
+  <!-- Connecting arrows -->
+  <path d="M 33 44 L 41 44" stroke="white" stroke-width="2" fill="none"/>
+  <path d="M 59 44 L 67 44" stroke="white" stroke-width="2" fill="none"/>
+  
+  <!-- Arrow heads -->
+  <polygon points="40,42 40,46 43,44" fill="white"/>
+  <polygon points="66,42 66,46 69,44" fill="white"/>
+  
+  <!-- Bottom flow line -->
+  <path d="M 24 55 Q 50 70 76 55" stroke="white" stroke-width="2" fill="none" stroke-dasharray="3,3"/>
+</svg>
