@@ -1,247 +1,177 @@
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Bot, User, Loader2, Minimize2 } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { useRole } from "@/hooks/use-role";
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
-
-// ── Supply chain data context ────────────────────────────
-const supplyChainData = {
-  orders: [
-    { id: "ORD-R-201", product: "Cotton Fabric x10m", from: "KovaiDist",   total: "₹4,500",  status: "delivered",  date: "2026-07-15" },
-    { id: "ORD-R-202", product: "Silk Saree x5",      from: "MaduraiDist", total: "₹14,000", status: "shipped",    date: "2026-07-18" },
-    { id: "ORD-R-203", product: "Linen Shirt x20",    from: "KovaiDist",   total: "₹13,600", status: "processing", date: "2026-07-20" },
-    { id: "ORD-S-101", product: "Cotton Fabric x100m",from: "Priya Textiles", total: "₹45,000", status: "delivered", date: "2026-07-10" },
-    { id: "ORD-S-102", product: "Polyester Roll x50m",from: "Erode Mills",    total: "₹16,000", status: "shipped",   date: "2026-07-14" },
-    { id: "ORD-2041",  product: "Cotton Fabric x50",  from: "KovaiDist",   total: "₹42,000", status: "pending",    date: "2026-07-21" },
-    { id: "ORD-2042",  product: "Silk Saree x30",     from: "MaduraiDist", total: "₹18,500", status: "processing", date: "2026-07-22" },
-  ],
-  shipments: [
-    { id: "SHP-TN-041", product: "Cotton Fabric x50m", from: "KovaiDist",    to: "Chennai Store",  status: "delivered", eta: "2026-07-18", vehicle: "TN-38-AB-1234" },
-    { id: "SHP-TN-042", product: "Silk Saree x10",     from: "MaduraiDist",  to: "Tirupur Shop",   status: "shipped",   eta: "2026-07-22", vehicle: "TN-11-CD-5678" },
-    { id: "SHP-TN-043", product: "Linen Shirt x30",    from: "KovaiDist",    to: "Vellore Mart",   status: "packed",    eta: "2026-07-24", vehicle: "TN-04-EF-9012" },
-    { id: "SHP-TN-088", product: "Silk Saree x5",      from: "MaduraiDist",  to: "Chennai Store",  status: "shipped",   eta: "2026-07-22", vehicle: "TN-22-GH-3456" },
-    { id: "SHP-TN-089", product: "Linen Shirt x20",    from: "KovaiDist",    to: "Tirupur Shop",   status: "packed",    eta: "2026-07-24", vehicle: "TN-09-IJ-7890" },
-  ],
-  inventory: [
-    { sku: "CF-001", name: "Cotton Fabric",  qty: 850, status: "in-stock", warehouse: "WH-KOV-01" },
-    { sku: "SS-002", name: "Silk Saree",     qty: 45,  status: "low",      warehouse: "WH-KOV-01" },
-    { sku: "LS-003", name: "Linen Shirt",    qty: 0,   status: "out",      warehouse: "WH-KOV-02" },
-    { sku: "PR-004", name: "Polyester Roll", qty: 320, status: "in-stock", warehouse: "WH-KOV-02" },
-  ],
-  products: [
-    { id: "PRD-001", name: "Cotton Fabric", supplier: "Priya Textiles", location: "Erode, TN",       price: "₹450/m" },
-    { id: "PRD-002", name: "Silk Saree",    supplier: "Kanchipuram Co", location: "Kanchipuram, TN", price: "₹2,800" },
-    { id: "PRD-003", name: "Polyester Roll",supplier: "Erode Mills",    location: "Erode, TN",       price: "₹320/m" },
-  ],
+type Message = {
+  role: "user" | "assistant";
+  text: string;
 };
 
-const roleContext: Record<string, string> = {
-  admin:       "You are an AI assistant for an Admin of e-Track supply chain system. You have full access to all orders, shipments, inventory, users, and analytics. Help with system monitoring, dispute resolution, fraud alerts, and product tracking.",
-  supplier:    "You are an AI assistant for a Supplier on e-Track. Help with managing products, checking incoming orders from distributors, inventory stock levels, shipment status, and low stock alerts.",
-  distributor: "You are an AI assistant for a Distributor on e-Track. Help with orders placed to suppliers, warehouse inventory, dispatching shipments to retailers, and managing returns.",
-  retailer:    "You are an AI assistant for a Retailer on e-Track. Help with placing orders from distributors, tracking deliveries, managing store inventory, recording sales, and product origin tracking.",
-};
+const suggestions = [
+  "Show low stock items",
+  "What are my pending orders?",
+  "Track my shipments",
+  "Show inventory summary",
+];
 
-type Message = { role: "user" | "bot"; text: string };
-
-const quickPrompts: Record<string, string[]> = {
-  admin:       ["Show all pending orders", "Any fraud alerts?", "Track SHP-TN-042", "Low stock items"],
-  supplier:    ["Check my incoming orders", "Low stock alerts", "Track SHP-TN-041", "Order ORD-2041 status"],
-  distributor: ["Orders from suppliers", "Warehouse stock levels", "Track SHP-TN-043", "Any returns pending?"],
-  retailer:    ["Track my order ORD-R-202", "Check inventory alerts", "Where is SHP-TN-088?", "Product origin PRD-001"],
-};
-
-export default function AIChatBot() {
-  const { role, user } = useRole();
-  const [open, setOpen]       = useState(false);
-  const [input, setInput]     = useState("");
+const AIChatBot = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "bot", text: `Hi ${user?.name?.split(" ")[0] || "there"}! 👋 I'm your e-Track AI assistant. I can help you track orders, shipments, check inventory, and answer supply chain questions. What would you like to know?` },
+    {
+      role: "assistant",
+      text: "👋 Hello! I'm your AI supply chain assistant powered by Gemini. I can help you with orders, shipments, inventory, and more. Ask me anything!",
+    },
   ]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [appData, setAppData] = useState<any>({ orders: [], shipments: [], inventory: [] });
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, open]);
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('cf_token');
+        const headers = { Authorization: `Bearer ${token}` };
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  const buildSystemPrompt = () => {
-    const ctx = roleContext[role] || roleContext.retailer;
-    return `${ctx}
+        const [ordersRes, shipmentsRes, inventoryRes] = await Promise.all([
+          fetch(`${baseUrl}/orders`, { headers }),
+          fetch(`${baseUrl}/shipments`, { headers }),
+          fetch(`${baseUrl}/inventory`, { headers }),
+        ]);
 
-You have access to the following live supply chain data:
+        const orders = ordersRes.ok ? await ordersRes.json() : [];
+        const shipments = shipmentsRes.ok ? await shipmentsRes.json() : [];
+        const inventory = inventoryRes.ok ? await inventoryRes.json() : [];
 
-ORDERS: ${JSON.stringify(supplyChainData.orders, null, 2)}
+        setAppData({ orders, shipments, inventory });
+      } catch (error) {
+        console.error('Failed to fetch app data:', error);
+      }
+    };
+    fetchData();
+  }, []);
 
-SHIPMENTS: ${JSON.stringify(supplyChainData.shipments, null, 2)}
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = input.trim();
+    if (!trimmed || loading) return;
 
-INVENTORY: ${JSON.stringify(supplyChainData.inventory, null, 2)}
-
-PRODUCTS: ${JSON.stringify(supplyChainData.products, null, 2)}
-
-Rules:
-- When user asks about an order ID (e.g. ORD-R-202), find it in the data and give full details.
-- When user asks about a shipment ID (e.g. SHP-TN-042) or vehicle number (e.g. TN-11-CD-5678), find and report status, ETA, route.
-- When user asks about a product ID (e.g. PRD-001), give origin, supplier, price details.
-- When user asks about inventory, report stock levels and alerts.
-- Be concise, friendly, and use emojis where appropriate.
-- Always respond based on the user's role: ${role}.
-- If data is not found, say so clearly and suggest what IDs are available.
-- Format responses with clear sections using line breaks.`;
-  };
-
-  const sendMessage = async (text?: string) => {
-    const msg = text || input.trim();
-    if (!msg || loading) return;
+    const userMessage: Message = { role: "user", text: trimmed };
+    setMessages((current) => [...current, userMessage]);
     setInput("");
-    setMessages(prev => [...prev, { role: "user", text: msg }]);
     setLoading(true);
+
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const chat  = model.startChat({
-        history: [],
-        generationConfig: { maxOutputTokens: 500, temperature: 0.7 },
-      });
-      const systemPrompt = buildSystemPrompt();
-      const result = await chat.sendMessage(`${systemPrompt}\n\nUser (${role}): ${msg}`);
-      const response = result.response.text();
-      setMessages(prev => [...prev, { role: "bot", text: response }]);
-    } catch (err: any) {
-      setMessages(prev => [...prev, { role: "bot", text: "⚠️ Sorry, I couldn't connect to AI. Please try again." }]);
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error('Gemini API key not configured');
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+      const context = `You are a helpful supply chain assistant. Here's the current user's data:
+
+Orders (${appData.orders.length} total): ${JSON.stringify(appData.orders.slice(0, 10))}
+Shipments (${appData.shipments.length} total): ${JSON.stringify(appData.shipments.slice(0, 10))}
+Inventory (${appData.inventory.length} total): ${JSON.stringify(appData.inventory.slice(0, 10))}
+
+User question: ${trimmed}
+
+Provide a helpful, concise answer based on the data above. If the data doesn't contain the answer, suggest what the user can do. Keep responses under 150 words.`;
+
+      const result = await model.generateContent(context);
+      const response = await result.response;
+      const assistantText = response.text();
+
+      const assistantMessage: Message = { role: "assistant", text: assistantText };
+      setMessages((current) => [...current, assistantMessage]);
+    } catch (error) {
+      console.error('AI Error:', error);
+      const assistantMessage: Message = { 
+        role: "assistant", 
+        text: "I'm having trouble connecting to the AI service. Please check your API key configuration or try again later." 
+      };
+      setMessages((current) => [...current, assistantMessage]);
     } finally {
       setLoading(false);
     }
   };
 
-  const roleColors: Record<string, string> = {
-    admin:       "from-violet-600 to-violet-700",
-    supplier:    "from-blue-600 to-blue-700",
-    distributor: "from-amber-600 to-amber-700",
-    retailer:    "from-emerald-600 to-emerald-700",
+  const handleSuggestion = (suggestion: string) => {
+    setInput(suggestion);
   };
 
-  const gradientClass = roleColors[role] || roleColors.retailer;
+  const messageList = useMemo(
+    () =>
+      messages.map((message, index) => (
+        <div
+          key={index}
+          className={`mb-3 flex ${message.role === "assistant" ? "justify-start" : "justify-end"}`}
+        >
+          <div
+            className={`max-w-[85%] rounded-[28px] p-3 text-sm leading-6 whitespace-pre-wrap shadow-sm ${
+              message.role === "assistant"
+                ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-slate-100"
+                : "bg-sky-500 text-slate-950"
+            }`}
+          >
+            {message.text}
+          </div>
+        </div>
+      )),
+    [messages],
+  );
 
   return (
-    <>
-      {/* Floating button */}
-      <AnimatePresence>
-        {!open && (
-          <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            onClick={() => setOpen(true)}
-            className={`fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-gradient-to-br ${gradientClass} shadow-lg flex items-center justify-center hover:scale-110 transition-transform`}
+    <div className="fixed bottom-4 right-4 z-50 w-full max-w-md rounded-[32px] border border-slate-700 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl text-slate-100">
+      <div className="mb-4 rounded-3xl bg-slate-900/90 p-4 shadow-inner shadow-slate-950/40">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-sky-300/80">Gemini AI</p>
+            <h2 className="text-xl font-semibold text-white">Supply Chain Assistant</h2>
+          </div>
+          <span className="rounded-2xl bg-sky-500 px-3 py-1 text-xs font-semibold text-slate-950">
+            {appData.orders.length + appData.shipments.length + appData.inventory.length} items
+          </span>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-slate-300">
+          Ask me about your orders, shipments, inventory, and supply chain operations.
+        </p>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2 text-xs">
+        {suggestions.map((suggestion) => (
+          <button
+            key={suggestion}
+            type="button"
+            onClick={() => handleSuggestion(suggestion)}
+            disabled={loading}
+            className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-slate-100 transition hover:border-sky-500 hover:text-white disabled:opacity-50"
           >
-            <MessageCircle className="h-6 w-6 text-white" />
-            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center font-bold">AI</span>
-          </motion.button>
-        )}
-      </AnimatePresence>
+            {suggestion}
+          </button>
+        ))}
+      </div>
 
-      {/* Chat window */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 40, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 40, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="fixed bottom-6 right-6 z-50 w-[370px] max-w-[calc(100vw-2rem)] h-[560px] max-h-[calc(100vh-5rem)] flex flex-col rounded-2xl shadow-2xl border border-border bg-background overflow-hidden"
-          >
-            {/* Header */}
-            <div className={`bg-gradient-to-r ${gradientClass} px-4 py-3 flex items-center justify-between shrink-0`}>
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
-                  <Bot className="h-4 w-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-white font-semibold text-sm">e-Track AI</p>
-                  <p className="text-white/70 text-[10px] capitalize">{role} Assistant · Powered by Gemini</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <button onClick={() => setOpen(false)} className="ml-2 text-white/70 hover:text-white transition-colors">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+      <div className="mb-4 max-h-72 space-y-2 overflow-y-auto pr-1 pb-1 text-sm">{messageList}</div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {messages.map((msg, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-                >
-                  <div className={`h-7 w-7 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold ${msg.role === "user" ? `bg-gradient-to-br ${gradientClass}` : "bg-muted border border-border"}`}>
-                    {msg.role === "user" ? <User className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5 text-foreground" />}
-                  </div>
-                  <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                    msg.role === "user"
-                      ? `bg-gradient-to-br ${gradientClass} text-white rounded-tr-sm`
-                      : "bg-muted text-foreground rounded-tl-sm"
-                  }`}>
-                    {msg.text}
-                  </div>
-                </motion.div>
-              ))}
-              {loading && (
-                <div className="flex gap-2">
-                  <div className="h-7 w-7 rounded-full bg-muted border border-border flex items-center justify-center">
-                    <Bot className="h-3.5 w-3.5 text-foreground" />
-                  </div>
-                  <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
-                  </div>
-                </div>
-              )}
-              <div ref={bottomRef} />
-            </div>
-
-            {/* Quick prompts */}
-            {messages.length <= 1 && (
-              <div className="px-4 pb-2 flex flex-wrap gap-1.5 shrink-0">
-                {(quickPrompts[role] || quickPrompts.retailer).map(p => (
-                  <button key={p} onClick={() => sendMessage(p)} className="text-[11px] px-2.5 py-1 rounded-full border border-border bg-muted hover:bg-primary/10 hover:border-primary/40 transition-colors text-muted-foreground hover:text-primary">
-                    {p}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Input */}
-            <div className="p-3 border-t border-border shrink-0">
-              <div className="flex gap-2 items-center">
-                <input
-                  className="flex-1 h-9 px-3 rounded-xl border border-input bg-muted text-sm outline-none focus:border-primary transition-colors placeholder:text-muted-foreground"
-                  placeholder="Ask about orders, shipments, stock..."
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && sendMessage()}
-                  disabled={loading}
-                />
-                <button
-                  onClick={() => sendMessage()}
-                  disabled={!input.trim() || loading}
-                  className={`h-9 w-9 rounded-xl bg-gradient-to-br ${gradientClass} flex items-center justify-center disabled:opacity-40 hover:opacity-90 transition-opacity shrink-0`}
-                >
-                  {loading ? <Loader2 className="h-4 w-4 text-white animate-spin" /> : <Send className="h-4 w-4 text-white" />}
-                </button>
-              </div>
-              <p className="text-[10px] text-muted-foreground text-center mt-1.5">Powered by Google Gemini · e-Track AI</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          placeholder="Ask a question..."
+          disabled={loading}
+          className="min-h-[48px] flex-1 rounded-2xl border border-slate-700 bg-slate-900/95 px-4 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex items-center justify-center rounded-2xl bg-sky-500 px-4 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? 'Thinking...' : 'Ask'}
+        </button>
+      </form>
+    </div>
   );
-}
+};
+
+export default AIChatBot;
