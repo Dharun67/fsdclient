@@ -17,7 +17,7 @@ const AIChatBot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      text: "👋 Hello! I'm your AI supply chain assistant powered by Gemini. I can help you with orders, shipments, inventory, and more. Ask me anything!",
+      text: "👋 Hello! I'm your supply chain assistant. I can help you with orders, shipments, inventory, and more. Ask me anything!",
     },
   ]);
   const [input, setInput] = useState("");
@@ -60,32 +60,53 @@ const AIChatBot = () => {
     setLoading(true);
 
     try {
-      const apiKey = 'AIzaSyDa61I3jcl2lRHzfGnjbFctp1Qi1q_eDVs';
+      // Simple rule-based responses using actual data
+      const lowerQuery = trimmed.toLowerCase();
+      let responseText = "";
 
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      if (lowerQuery.includes('order')) {
+        if (appData.orders.length === 0) {
+          responseText = "You don't have any orders yet. Create your first order to get started!";
+        } else {
+          const pending = appData.orders.filter((o: any) => o.status === 'pending').length;
+          const delivered = appData.orders.filter((o: any) => o.status === 'delivered').length;
+          responseText = `You have ${appData.orders.length} total orders:\n- ${pending} pending\n- ${delivered} delivered\n\nRecent orders: ${appData.orders.slice(0, 3).map((o: any) => `\n• ${o.orderId || o._id}: ${o.status}`).join('')}`;
+        }
+      } else if (lowerQuery.includes('shipment') || lowerQuery.includes('track')) {
+        if (appData.shipments.length === 0) {
+          responseText = "No active shipments found. Your shipments will appear here once orders are dispatched.";
+        } else {
+          const inTransit = appData.shipments.filter((s: any) => s.status === 'in-transit').length;
+          responseText = `You have ${appData.shipments.length} shipments:\n- ${inTransit} in transit\n\nRecent: ${appData.shipments.slice(0, 3).map((s: any) => `\n• ${s.trackingId || s._id}: ${s.status}`).join('')}`;
+        }
+      } else if (lowerQuery.includes('inventory') || lowerQuery.includes('stock')) {
+        if (appData.inventory.length === 0) {
+          responseText = "Your inventory is empty. Add products to start tracking stock levels.";
+        } else {
+          const lowStock = appData.inventory.filter((i: any) => i.quantity < (i.threshold || 10)).length;
+          const totalItems = appData.inventory.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0);
+          responseText = `Inventory Summary:\n- ${appData.inventory.length} products\n- ${totalItems} total items\n- ${lowStock} low stock alerts\n\nTop items: ${appData.inventory.slice(0, 3).map((i: any) => `\n• ${i.name || i.sku}: ${i.quantity} units`).join('')}`;
+        }
+      } else if (lowerQuery.includes('low stock')) {
+        const lowStock = appData.inventory.filter((i: any) => i.quantity < (i.threshold || 10));
+        if (lowStock.length === 0) {
+          responseText = "Great news! All items are well-stocked. No low stock alerts.";
+        } else {
+          responseText = `⚠️ ${lowStock.length} items need restocking:\n${lowStock.map((i: any) => `\n• ${i.name || i.sku}: ${i.quantity} units (threshold: ${i.threshold || 10})`).join('')}`;
+        }
+      } else if (lowerQuery.includes('summary') || lowerQuery.includes('overview')) {
+        responseText = `📊 Supply Chain Overview:\n\n📦 Orders: ${appData.orders.length}\n🚚 Shipments: ${appData.shipments.length}\n📋 Inventory: ${appData.inventory.length} products\n\nEverything is synced with your backend!`;
+      } else {
+        responseText = "I can help you with:\n• Orders status\n• Shipment tracking\n• Inventory levels\n• Low stock alerts\n\nTry asking: 'Show my orders' or 'Check inventory'";
+      }
 
-      const context = `You are a helpful supply chain assistant. Here's the current user's data:
-
-Orders (${appData.orders.length} total): ${JSON.stringify(appData.orders.slice(0, 10))}
-Shipments (${appData.shipments.length} total): ${JSON.stringify(appData.shipments.slice(0, 10))}
-Inventory (${appData.inventory.length} total): ${JSON.stringify(appData.inventory.slice(0, 10))}
-
-User question: ${trimmed}
-
-Provide a helpful, concise answer based on the data above. If the data doesn't contain the answer, suggest what the user can do. Keep responses under 150 words.`;
-
-      const result = await model.generateContent(context);
-      const response = await result.response;
-      const assistantText = response.text();
-
-      const assistantMessage: Message = { role: "assistant", text: assistantText };
+      const assistantMessage: Message = { role: "assistant", text: responseText };
       setMessages((current) => [...current, assistantMessage]);
     } catch (error) {
-      console.error('AI Error:', error);
+      console.error('Chatbot Error:', error);
       const assistantMessage: Message = { 
         role: "assistant", 
-        text: "I'm having trouble connecting to the AI service. Please check your API key configuration or try again later." 
+        text: "Sorry, I encountered an error. Please try again." 
       };
       setMessages((current) => [...current, assistantMessage]);
     } finally {
@@ -123,7 +144,7 @@ Provide a helpful, concise answer based on the data above. If the data doesn't c
       <div className="mb-4 rounded-3xl bg-slate-900/90 p-4 shadow-inner shadow-slate-950/40">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-sky-300/80">Gemini AI</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-sky-300/80">Smart Assistant</p>
             <h2 className="text-xl font-semibold text-white">Supply Chain Assistant</h2>
           </div>
           <span className="rounded-2xl bg-sky-500 px-3 py-1 text-xs font-semibold text-slate-950">
