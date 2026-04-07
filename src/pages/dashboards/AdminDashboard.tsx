@@ -4,6 +4,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useRole } from "@/hooks/use-role";
+import ReportDownloadButton from "@/components/ReportDownloadButton";
 
 const shipmentTrend = [
   { month: "Jan", shipped: 45, delivered: 42 },
@@ -38,9 +39,12 @@ export default function AdminDashboard() {
   const { user } = useRole();
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, {user?.name} — Full system overview</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+          <p className="text-muted-foreground">Welcome back, {user?.name} — Full system overview</p>
+        </div>
+        <ReportDownloadButton />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

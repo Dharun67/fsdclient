@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useRole } from "@/hooks/use-role";
+import ReportDownloadButton from "@/components/ReportDownloadButton";
 
 const monthlySales = [
   { month: "Jan", orders: 12 }, { month: "Feb", orders: 18 },
@@ -32,9 +33,12 @@ export default function SupplierDashboard() {
   const { user } = useRole();
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Supplier Dashboard</h1>
-        <p className="text-muted-foreground">Welcome, {user?.name} — {user?.company || "Your Company"}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Supplier Dashboard</h1>
+          <p className="text-muted-foreground">Welcome, {user?.name} — {user?.company || "Your Company"}</p>
+        </div>
+        <ReportDownloadButton />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
