@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Plus, Package, Filter } from "lucide-react";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -27,19 +27,36 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { inventory } from "@/lib/mock-data";
+import { inventoryAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Inventory() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [inventory, setInventory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const filtered = inventory.filter((item) => {
-    const matchSearch =
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.sku.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || item.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  useEffect(() => {
+    fetchInventory();
+  }, [search, statusFilter]);
+
+  const fetchInventory = async () => {
+    try {
+      setLoading(true);
+      const data = await inventoryAPI.getAll(search, statusFilter);
+      setInventory(data);
+    } catch (error) {
+      console.error('Failed to fetch inventory:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load inventory. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -129,42 +146,50 @@ export default function Inventory() {
         </Select>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-card rounded-lg overflow-hidden"
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead>SKU</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Quantity</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Warehouse</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((item, i) => (
-              <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
-                <TableCell className="font-medium">{item.name}</TableCell>
-                <TableCell className="text-muted-foreground">{item.sku}</TableCell>
-                <TableCell className="text-muted-foreground">{item.category}</TableCell>
-                <TableCell className="text-right font-medium">{item.quantity.toLocaleString()}</TableCell>
-                <TableCell><StatusBadge status={item.status} /></TableCell>
-                <TableCell className="text-muted-foreground">{item.warehouse}</TableCell>
+      {loading ? (
+        <div className="glass-card rounded-lg p-8 text-center">
+          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Loading inventory...</p>
+        </div>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-lg overflow-hidden"
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>SKU</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Quantity</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Warehouse</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        {filtered.length === 0 && (
-          <div className="p-8 text-center">
-            <Package className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
-            <p className="text-sm text-muted-foreground">No products found</p>
-          </div>
-        )}
-      </motion.div>
+            </TableHeader>
+            <TableBody>
+              {inventory.map((item) => (
+                <TableRow key={item._id} className="hover:bg-muted/30 transition-colors">
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{item.sku}</TableCell>
+                  <TableCell className="text-muted-foreground">{item.category || 'N/A'}</TableCell>
+                  <TableCell className="text-right font-medium">{item.quantity.toLocaleString()}</TableCell>
+                  <TableCell><StatusBadge status={item.status} /></TableCell>
+                  <TableCell className="text-muted-foreground">{item.warehouse || 'N/A'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {inventory.length === 0 && (
+            <div className="p-8 text-center">
+              <Package className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
+              <p className="text-sm text-muted-foreground">No products found</p>
+              <p className="text-xs text-muted-foreground mt-1">Add your first product to get started</p>
+            </div>
+          )}
+        </motion.div>
+      )}
     </div>
   );
 }
