@@ -4,34 +4,39 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/AppLayout";
-import Dashboard from "@/pages/Dashboard";
-import Shipments from "@/pages/Shipments";
-import Inventory from "@/pages/Inventory";
-import Orders    from "@/pages/Orders";
-import Profile   from "@/pages/Profile";
-import Login     from "@/pages/Login";
-import NotFound  from "@/pages/NotFound";
+import Dashboard  from "@/pages/Dashboard";
+import Profile    from "@/pages/Profile";
+import Login      from "@/pages/Login";
+import NotFound   from "@/pages/NotFound";
+
+// Retailer pages
+import RetailerOrders    from "@/pages/retailer/RetailerOrders";
+import RetailerInventory from "@/pages/retailer/RetailerInventory";
+import RetailerSales     from "@/pages/retailer/RetailerSales";
+import RetailerTrack     from "@/pages/retailer/RetailerTrack";
+
+// Distributor pages
+import DistributorOrders    from "@/pages/distributor/DistributorOrders";
+import DistributorInventory from "@/pages/distributor/DistributorInventory";
+import DistributorShipments from "@/pages/distributor/DistributorShipments";
+import DistributorReturns   from "@/pages/distributor/DistributorReturns";
 
 const queryClient = new QueryClient();
 
-/* ── Token helpers ──────────────────────────────────────── */
 function isLoggedIn(): boolean {
   try {
     const token = localStorage.getItem("cf_token");
     if (!token) return false;
-    const { exp } = JSON.parse(atob(token));
-    if (Date.now() > exp) {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (Date.now() / 1000 > payload.exp) {
       localStorage.removeItem("cf_token");
       localStorage.removeItem("cf_user");
       return false;
     }
     return true;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
-/* ── Guards ─────────────────────────────────────────────── */
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   if (!isLoggedIn()) return <Navigate to="/login" state={{ from: location }} replace />;
@@ -47,7 +52,6 @@ function Protected({ children }: { children: React.ReactNode }) {
   return <AuthGuard><AppLayout>{children}</AppLayout></AuthGuard>;
 }
 
-/* ── App ────────────────────────────────────────────────── */
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -56,12 +60,24 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<GuestGuard><Login /></GuestGuard>} />
-          <Route path="/"          element={<Protected><Dashboard /></Protected>} />
-          <Route path="/shipments" element={<Protected><Shipments /></Protected>} />
-          <Route path="/inventory" element={<Protected><Inventory /></Protected>} />
-          <Route path="/orders"    element={<Protected><Orders /></Protected>} />
-          <Route path="/profile"   element={<Protected><Profile /></Protected>} />
-          <Route path="*"          element={<NotFound />} />
+
+          {/* Common */}
+          <Route path="/"        element={<Protected><Dashboard /></Protected>} />
+          <Route path="/profile" element={<Protected><Profile /></Protected>} />
+
+          {/* Retailer */}
+          <Route path="/retail/orders"    element={<Protected><RetailerOrders /></Protected>} />
+          <Route path="/retail/inventory" element={<Protected><RetailerInventory /></Protected>} />
+          <Route path="/retail/sales"     element={<Protected><RetailerSales /></Protected>} />
+          <Route path="/retail/track"     element={<Protected><RetailerTrack /></Protected>} />
+
+          {/* Distributor */}
+          <Route path="/dist/orders"    element={<Protected><DistributorOrders /></Protected>} />
+          <Route path="/dist/inventory" element={<Protected><DistributorInventory /></Protected>} />
+          <Route path="/dist/shipments" element={<Protected><DistributorShipments /></Protected>} />
+          <Route path="/dist/returns"   element={<Protected><DistributorReturns /></Protected>} />
+
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
