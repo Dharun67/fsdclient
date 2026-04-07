@@ -8,6 +8,7 @@ import Dashboard  from "@/pages/Dashboard";
 import Profile    from "@/pages/Profile";
 import Login      from "@/pages/Login";
 import NotFound   from "@/pages/NotFound";
+import Diagnostic from "@/pages/Diagnostic";
 import AIChatBot  from "@/components/AIChatBot";
 
 // Retailer pages
@@ -65,6 +66,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/diagnostic" element={<Diagnostic />} />
           <Route path="/login" element={<GuestGuard><Login /></GuestGuard>} />
 
           {/* Common */}
