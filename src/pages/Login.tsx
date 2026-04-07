@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = 'https://chainflowbackend.onrender.com/api';
 
 const roles = [
   { value: "admin",       icon: Shield,       color: "border-violet-400 bg-violet-50 dark:bg-violet-950/40" },
