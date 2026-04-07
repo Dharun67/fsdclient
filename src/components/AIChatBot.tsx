@@ -29,7 +29,7 @@ const AIChatBot = () => {
       try {
         const token = localStorage.getItem('cf_token');
         const headers = { Authorization: `Bearer ${token}` };
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const baseUrl = 'https://chainflowbackend.onrender.com/api';
 
         const [ordersRes, shipmentsRes, inventoryRes] = await Promise.all([
           fetch(`${baseUrl}/orders`, { headers }),
@@ -60,10 +60,7 @@ const AIChatBot = () => {
     setLoading(true);
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('Gemini API key not configured');
-      }
+      const apiKey = 'AIzaSyDa61I3jcl2lRHzfGnjbFctp1Qi1q_eDVs';
 
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-pro" });
